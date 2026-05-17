@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PayUSDT Secure Checkout</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        :root { --primary: #2563eb; --success: #059669; --warning: #d97706; }
+        body { background: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 0; margin: 0; }
+        .checkout-card { background: white; width: 100%; max-width: 360px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); overflow: hidden; margin: 0; padding-bottom: 5px; }
+        .merchant-header { background: #f8fafc; padding: 2px 10px; border-bottom: 1px solid #e2e8f0; text-align: center; min-height: 24px; }
+        
+        .address-box-unified { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 5px 8px; text-align: center; }
+        .qr-container-new { background: white; width: 120px; height: 120px; margin: 0; padding: 5px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); border: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: center; position: relative; }
+        
+        .network-badge { background: #fee2e2; color: #b91c1c; padding: 4px 10px; border-radius: 4px; font-weight: 800; font-size: 0.75rem; border: 1px solid #fecaca; display: inline-block; }
+        .network-trc { background: #fff7ed; color: #c2410c; border-color: #ffedd5; }
+        .network-erc { background: #f0f9ff; color: #0369a1; border-color: #e0f2fe; }
+ 
+        .amount-display { font-size: 1.4rem; font-weight: 900; color: #1e293b; margin: 3px 0 15px; line-height: 1; cursor: pointer; position: relative; padding: 8px 12px; background: #fffbeb; border: 2px solid #fbbf24; border-radius: 8px; display: inline-block; transition: all 0.2s; }
+        .amount-display:hover { background: #fff7ed; border-color: #f59e0b; transform: scale(1.01); }
+        .amount-display:active { transform: scale(0.99); }
+        .copy-hint { font-size: 0.7rem; color: #f97316; font-weight: 700; display: block; margin-top: 2px; }
+
+        .address-box { background: white; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; word-break: break-all; text-align: center; cursor: pointer; position: relative; transition: all 0.2s; }
+        .address-box:hover { background: #f8fafc; border-color: var(--primary); }
+        
+        .status-badge { display: inline-block; padding: 2px 10px; border-radius: 50px; font-size: 0.65rem; font-weight: 600; margin: 5px 0; }
+        .timer { font-size: 0.75rem; font-weight: 700; color: var(--warning); line-height: 1; }
+        .overlay-status { position: absolute; inset: 0; background: rgba(255,255,255,0.9); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10; border-radius: 8px; display: none; }
+        
+        .copy-success-tip { position: absolute; background: #1e293b; color: white; padding: 3px 10px; border-radius: 4px; font-size: 0.65rem; bottom: 110%; left: 50%; transform: translateX(-50%); opacity: 0; transition: all 0.2s; pointer-events: none; z-index: 100; }
+        .copy-success-tip.show { opacity: 1; bottom: 125%; }
+        
+        .lang-switcher { position: absolute; top: 4px; right: 10px; font-size: 0.6rem; }
+        .lang-switcher a { color: #64748b; text-decoration: none; margin-left: 5px; font-weight: 500; cursor: pointer; }
+        .lang-switcher a.active { color: var(--primary); font-weight: 700; }
+
+        .faq-section { margin: 15px; text-align: left; border-top: 1px solid #e2e8f0; padding-top: 15px; }
+        .faq-title { font-size: 0.8rem; font-weight: 800; color: #1e293b; margin-bottom: 10px; display: flex; align-items: center; }
+        .faq-title i { color: #f59e0b; margin-right: 8px; }
+        .faq-item { margin-bottom: 12px; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #f1f5f9; }
+        .faq-q { font-size: 0.75rem; font-weight: 700; color: #334155; margin-bottom: 4px; }
+        .faq-a { font-size: 0.7rem; color: #64748b; line-height: 1.4; }
+
+        .guide-hint { font-size: 0.7rem; font-weight: 850; color: #1e293b; margin: 3px 0 1px; }
+        .guide-hint i { color: var(--primary); margin-right: 5px; }
+        
+        #loading-overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.8); z-index: 1000; display: flex; align-items: center; justify-content: center; flex-direction: column; }
+    </style>
+</head>
+<body>
+    <div id="loading-overlay">
+        <div class="spinner-border text-primary" role="status"></div>
+        <div class="mt-2 text-muted fw-bold small" id="loading-text">Loading secure checkout...</div>
+    </div>
+
+    <div class="checkout-card" id="main-content" style="display: none;">
+        <div class="merchant-header" style="position: relative;">
+            <div class="lang-switcher">
+                <a onclick="setLanguage('zh')" id="btn-lang-zh">中</a>
+                <a onclick="setLanguage('en')" id="btn-lang-en">EN</a>
+                <a onclick="setLanguage('th')" id="btn-lang-th">TH</a>
+                <a onclick="setLanguage('km')" id="btn-lang-km">KM</a>
+                <a onclick="setLanguage('mm')" id="btn-lang-mm">MM</a>
+            </div>
+        </div>
+
+        <div class="px-3 py-1 text-center">
+            
+            <div id="status-container"></div>
+
+            <div class="alert alert-warning py-1 px-3 mx-3 mt-1 mb-1 text-start" style="font-size: 0.65rem; border-radius: 8px; border: 2px solid #fbbf24; background-color: #fffbeb;" id="warning-box">
+                <div class="mb-1 fw-bold text-dark"><i class="fa-solid fa-triangle-exclamation me-1 text-warning"></i> <span data-i18n="tip_title"></span>:</div>
+                <div class="fw-bold text-danger" data-i18n="tip_gas"></div>
+                <div class="fw-bold text-danger" data-i18n="tip_usdt_only"></div>
+                <div class="text-secondary" style="font-size: 0.65rem;" data-i18n="tip_confirm_time"></div>
+            </div>
+
+            <!-- 扫码支付区 -->
+            <div class="guide-hint mt-1"><i class="fa-solid fa-1"></i> <span data-i18n="guide_step1"></span></div>
+            
+            <div class="address-box-unified mt-1 mb-2 mx-3 d-flex align-items-center justify-content-between">
+                <div class="qr-container-new flex-shrink-0">
+                    <div id="qrcode_box"></div>
+                    <div class="overlay-status" id="qr-overlay">
+                        <i id="overlay-icon" class="fa-solid fs-2 mb-1"></i>
+                        <div id="overlay-text" class="fw-bold" style="font-size: 0.8rem;"></div>
+                        <div class="text-muted mt-1" id="close_countdown" style="font-size: 0.7rem; display:none;"></div>
+                    </div>
+                </div>
+                <div class="ms-2 flex-grow-1 d-flex flex-column align-items-center text-center" style="gap: 5px;">
+                    <div>
+                        <div class="network-badge" id="network-badge"></div>
+                    </div>
+                    <div class="timer" id="countdown" style="font-size: 0.7rem; margin: 0;">--:--</div>
+                    <div class="address-box p-1" style="background: transparent; border: 1px dashed #cbd5e1; margin: 0; text-align: center;" id="address_box">
+                        <div class="copy-success-tip" id="copy_tip" data-i18n="copied"></div>
+                        <div class="mb-0 text-muted" style="font-size: 0.6rem;" data-i18n="copy_text"></div>
+                        <div class="fw-bold text-dark" id="address_text" style="font-size: 0.7rem; line-height: 1.2;"></div>
+                        <i class="fa-regular fa-copy mt-1 text-primary opacity-50" style="font-size: 0.7rem;"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 核心金额区 -->
+            <div class="guide-hint"><i class="fa-solid fa-2"></i> <span data-i18n="guide_step2"></span></div>
+
+            <div class="amount-display mx-3 d-block" id="amount_copy_box">
+                <div class="copy-success-tip" id="amount_copy_tip" data-i18n="copied"></div>
+                <div style="font-size: 0.7rem; color: #f97316; margin-bottom: 2px; font-weight: 800; text-transform: uppercase;" data-i18n="amount_warn"></div>
+                <div class="d-flex align-items-center justify-content-center">
+                    <span style="font-weight: 900; font-size: 1.4rem;" id="real_amount_text">--</span>
+                    <span class="ms-1 fw-bold text-muted" style="font-size: 0.9rem;">USDT</span>
+                </div>
+                <span class="copy-hint" id="copy_icon_box"><i class="fa-regular fa-copy"></i> <span data-i18n="copied"></span></span>
+            </div>
+
+        </div>
+
+        <div class="faq-section">
+            <div class="faq-title"><i class="fa-solid fa-circle-question"></i><span data-i18n="faq_title"></span></div>
+            <div class="faq-item">
+                <div class="faq-q" data-i18n="faq_q1"></div>
+                <div class="faq-a" data-i18n="faq_a1"></div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-q" data-i18n="faq_q2"></div>
+                <div class="faq-a" data-i18n="faq_a2"></div>
+            </div>
+        </div>
+
+        <div class="py-2 bg-light text-center small text-muted border-top" style="font-size: 0.7rem;">
+            <span data-i18n="order_id"></span>: <span id="bottom_order_id"></span>
+        </div>
+    </div>
+
+    <script src="lang.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
